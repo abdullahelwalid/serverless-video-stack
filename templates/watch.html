@@ -1,0 +1,1087 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ file_key }} - Video Player</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+      }
+
+      .video-container {
+        position: relative;
+        width: 100%;
+        max-width: 1400px;
+        margin: 0 auto;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      }
+
+      .video-player {
+        width: 100%;
+        height: auto;
+        background-color: #000;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+      }
+
+      .video-info {
+        background: rgba(248, 249, 250, 0.8);
+        backdrop-filter: blur(10px);
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-top: 1.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .loading-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(
+          135deg,
+          rgba(102, 126, 234, 0.95) 0%,
+          rgba(118, 75, 162, 0.95) 100%
+        );
+        color: white;
+        padding: 2rem;
+        border-radius: 16px;
+        display: none;
+        z-index: 10;
+        backdrop-filter: blur(10px);
+        text-align: center;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      }
+
+      .buffer-indicator {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: linear-gradient(
+          135deg,
+          rgba(0, 0, 0, 0.8) 0%,
+          rgba(0, 0, 0, 0.9) 100%
+        );
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 12px;
+        display: none;
+        z-index: 5;
+        max-width: 200px;
+        backdrop-filter: blur(5px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .buffer-visualization {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 8px;
+        background: linear-gradient(
+          90deg,
+          rgba(0, 0, 0, 0.2) 0%,
+          rgba(0, 0, 0, 0.3) 100%
+        );
+        border-radius: 0 0 12px 12px;
+        overflow: hidden;
+      }
+
+      .buffer-ranges {
+        position: relative;
+        height: 100%;
+        width: 100%;
+      }
+
+      .buffer-range {
+        position: absolute;
+        height: 100%;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transition: none;
+        border-radius: 2px;
+      }
+
+      .current-time-indicator {
+        position: absolute;
+        height: 100%;
+        width: 3px;
+        background: #fff;
+        z-index: 2;
+        border-radius: 1px;
+        box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .auto-play-prompt {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(
+          135deg,
+          rgba(0, 0, 0, 0.9) 0%,
+          rgba(0, 0, 0, 0.95) 100%
+        );
+        color: white;
+        padding: 2rem;
+        border-radius: 16px;
+        text-align: center;
+        z-index: 15;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .play-button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+        margin-top: 15px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      }
+
+      .play-button:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+      }
+
+      .controls-section {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-top: 1.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .control-group {
+        background: rgba(248, 249, 250, 0.8);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+      }
+
+      .control-group:last-child {
+        margin-bottom: 0;
+      }
+
+      .cache-info {
+        background: linear-gradient(
+          135deg,
+          rgba(231, 243, 255, 0.8) 0%,
+          rgba(179, 217, 255, 0.8) 100%
+        );
+        border: 1px solid rgba(179, 217, 255, 0.6);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-top: 1.5rem;
+        font-size: 13px;
+        backdrop-filter: blur(5px);
+      }
+
+      .cache-status {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 11px;
+        margin-right: 8px;
+        font-weight: 500;
+      }
+
+      .cached {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .downloading {
+        background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        color: #856404;
+        border: 1px solid #ffeaa7;
+      }
+
+      .not-cached {
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .navbar-custom {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      }
+
+      .back-btn {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        border: none;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .back-btn:hover {
+        background: linear-gradient(135deg, #5a6268 0%, #3d4449 100%);
+        color: white;
+        transform: translateY(-1px);
+        text-decoration: none;
+      }
+
+      .video-title {
+        color: #2c3e50;
+        font-weight: 600;
+        word-break: break-all;
+      }
+
+      .btn-control {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+      }
+
+      .btn-control:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        color: white;
+        transform: translateY(-1px);
+      }
+
+      .btn-outline-control {
+        border: 2px solid #667eea;
+        color: #667eea;
+        background: transparent;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+      }
+
+      .btn-outline-control:hover {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-color: #667eea;
+        color: white;
+        transform: translateY(-1px);
+      }
+
+      .form-select,
+      .form-control {
+        border: 2px solid rgba(102, 126, 234, 0.2);
+        border-radius: 8px;
+        transition: border-color 0.3s ease;
+      }
+
+      .form-select:focus,
+      .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+      }
+
+      .status-item {
+        background: rgba(255, 255, 255, 0.7);
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin-bottom: 6px;
+        border-left: 4px solid #667eea;
+      }
+
+      @media (max-width: 768px) {
+        .video-container {
+          padding: 1rem;
+          margin: 1rem;
+        }
+
+        .controls-section {
+          padding: 1rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-custom">
+      <div class="container">
+        <a class="navbar-brand fw-bold" href="{{ url_for('index') }}">
+          🎥 Video Library
+        </a>
+
+        <div class="navbar-nav ms-auto">
+          {% if user_info %}
+          <div class="nav-item dropdown">
+            <a
+              class="nav-link dropdown-toggle"
+              href="#"
+              role="button"
+              data-bs-toggle="dropdown"
+            >
+              👤 {{ user_info.username }}
+            </a>
+            <ul class="dropdown-menu">
+              <li>
+                <span class="dropdown-item-text small text-muted"
+                  >{{ user_info.email }}</span
+                >
+              </li>
+              <li><hr class="dropdown-divider" /></li>
+              <li>
+                <a class="dropdown-item" href="{{ url_for('logout') }}"
+                  >🚪 Logout</a
+                >
+              </li>
+            </ul>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </nav>
+
+    <div class="container py-4" style="margin-top: 76px">
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h1 class="mb-1">🎬 Now Playing</h1>
+          <p class="text-muted mb-0">
+            Authenticated as {{ user_info.username if user_info else 'User' }}
+          </p>
+        </div>
+        <a href="{{ url_for('index') }}" class="back-btn">
+          ← Back to Library
+        </a>
+      </div>
+
+      <!-- Flash Messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div
+        class="alert alert-{{ 'danger' if category == 'error' else ('warning' if category == 'warning' else ('info' if category == 'info' else 'success')) }} alert-dismissible fade show"
+        role="alert"
+      >
+        {{ message }}
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="alert"
+        ></button>
+      </div>
+      {% endfor %} {% endif %} {% endwith %}
+
+      <!-- Video Player Container -->
+      <div class="video-container">
+        <div class="loading-overlay" id="loadingOverlay">
+          <div class="text-center">
+            <div class="spinner-border spinner-border-lg" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="mt-3 h5">Loading video...</div>
+            <div class="small">Authenticating with CloudFront...</div>
+          </div>
+        </div>
+
+        <div class="auto-play-prompt" id="autoPlayPrompt" style="display: none">
+          <div class="h5 mb-3">🎥 Ready to Play</div>
+          <div class="mb-3">Click to start video and begin buffering</div>
+          <button class="play-button" id="startPlayback">▶ Start Video</button>
+        </div>
+
+        <div class="buffer-indicator" id="bufferIndicator">
+          <div id="bufferText">Buffering...</div>
+          <div class="small mt-1" id="bufferDetails"></div>
+        </div>
+
+        <video
+          id="videoPlayer"
+          class="video-player"
+          controls
+          preload="auto"
+          crossorigin="anonymous"
+        >
+          <source src="{{ video_url }}" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+
+        <div class="buffer-visualization">
+          <div class="buffer-ranges" id="bufferRanges"></div>
+          <div class="current-time-indicator" id="currentTimeIndicator"></div>
+        </div>
+      </div>
+
+      <!-- Video Information -->
+      <div class="video-info">
+        <div class="row align-items-center">
+          <div class="col-lg-8">
+            <h4 class="video-title mb-2">{{ file_key }}</h4>
+            <div class="d-flex flex-wrap gap-3 align-items-center">
+              <span
+                class="badge bg-primary bg-opacity-10 text-primary px-3 py-2"
+              >
+                📁 {{ file_size_mb }} MB
+              </span>
+              <span
+                class="badge bg-success bg-opacity-10 text-success px-3 py-2"
+              >
+                🔐 Authenticated via Cognito
+              </span>
+              <span class="badge bg-info bg-opacity-10 text-info px-3 py-2">
+                ☁️ CloudFront CDN
+              </span>
+            </div>
+          </div>
+          <div class="col-lg-4 text-end">
+            <div id="playbackInfo" class="small text-muted mb-1"></div>
+            <div id="networkInfo" class="small text-muted"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cache Status -->
+      <div class="cache-info">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h6 class="mb-0">📊 Cache & Buffer Status</h6>
+          <div class="small text-muted">Real-time monitoring</div>
+        </div>
+        <div id="cacheStatus" class="mb-3"></div>
+        <div id="bufferRangeInfo" class="small"></div>
+      </div>
+
+      <!-- Video Controls -->
+      <div class="controls-section">
+        <h6 class="mb-3">🎛️ Player Controls</h6>
+
+        <div class="row g-3">
+          <div class="col-lg-3 col-md-6">
+            <div class="control-group">
+              <label for="playbackRate" class="form-label small fw-semibold"
+                >⚡ Playback Speed</label
+              >
+              <select id="playbackRate" class="form-select form-select-sm">
+                <option value="0.5">0.5x (Slow)</option>
+                <option value="0.75">0.75x</option>
+                <option value="1" selected>1x (Normal)</option>
+                <option value="1.25">1.25x</option>
+                <option value="1.5">1.5x (Fast)</option>
+                <option value="2">2x (Very Fast)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="col-lg-3 col-md-6">
+            <div class="control-group">
+              <label for="cacheStrategy" class="form-label small fw-semibold"
+                >💾 Cache Strategy</label
+              >
+              <select id="cacheStrategy" class="form-select form-select-sm">
+                <option value="aggressive" selected>
+                  Aggressive (Best Quality)
+                </option>
+                <option value="normal">Normal (Balanced)</option>
+                <option value="minimal">Minimal (Data Saver)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="col-lg-3 col-md-6">
+            <div class="control-group">
+              <label class="form-label small fw-semibold"
+                >📥 Buffer Control</label
+              >
+              <div>
+                <button
+                  id="preloadAll"
+                  class="btn btn-outline-control btn-sm w-100"
+                >
+                  Preload Entire Video
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-3 col-md-6">
+            <div class="control-group">
+              <label class="form-label small fw-semibold"
+                >🗑️ Cache Control</label
+              >
+              <div>
+                <button
+                  id="clearCache"
+                  class="btn btn-outline-warning btn-sm w-100"
+                >
+                  Clear & Reload
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="mt-3 pt-3 border-top">
+          <div class="row g-2">
+            <div class="col-auto">
+              <button id="toggleFullscreen" class="btn btn-control btn-sm">
+                🔳 Fullscreen
+              </button>
+            </div>
+            <div class="col-auto">
+              <button id="togglePip" class="btn btn-control btn-sm">
+                📺 Picture-in-Picture
+              </button>
+            </div>
+            <div class="col-auto">
+              <button id="downloadVideo" class="btn btn-outline-control btn-sm">
+                💾 Download
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      const video = document.getElementById("videoPlayer");
+      const loadingOverlay = document.getElementById("loadingOverlay");
+      const bufferIndicator = document.getElementById("bufferIndicator");
+      const bufferRanges = document.getElementById("bufferRanges");
+      const currentTimeIndicator = document.getElementById(
+        "currentTimeIndicator",
+      );
+      const playbackInfo = document.getElementById("playbackInfo");
+      const networkInfo = document.getElementById("networkInfo");
+      const cacheStatus = document.getElementById("cacheStatus");
+      const bufferRangeInfo = document.getElementById("bufferRangeInfo");
+      const playbackRateSelect = document.getElementById("playbackRate");
+      const cacheStrategySelect = document.getElementById("cacheStrategy");
+      const autoPlayPrompt = document.getElementById("autoPlayPrompt");
+      const startPlaybackBtn = document.getElementById("startPlayback");
+      const preloadAllBtn = document.getElementById("preloadAll");
+      const clearCacheBtn = document.getElementById("clearCache");
+      const bufferText = document.getElementById("bufferText");
+      const bufferDetails = document.getElementById("bufferDetails");
+      const toggleFullscreenBtn = document.getElementById("toggleFullscreen");
+      const togglePipBtn = document.getElementById("togglePip");
+      const downloadVideoBtn = document.getElementById("downloadVideo");
+
+      let isInitialLoad = true;
+      let bufferCheckInterval;
+      let lastSeekTime = 0;
+      let seekCount = 0;
+      let cacheStrategy = "aggressive";
+      let cognitoToken = null;
+
+      // Enhanced buffer and cache tracking
+      let downloadedRanges = new Map();
+      let lastBufferedRanges = [];
+
+      // Cache strategy settings
+      const cacheStrategies = {
+        aggressive: {
+          preloadSize: 60,
+          keepBehind: 30,
+          chunkSize: 1024 * 1024,
+        },
+        normal: {
+          preloadSize: 30,
+          keepBehind: 15,
+          chunkSize: 512 * 1024,
+        },
+        minimal: {
+          preloadSize: 10,
+          keepBehind: 5,
+          chunkSize: 256 * 1024,
+        },
+      };
+
+      // Get Cognito token for authenticated requests
+      async function getCognitoToken() {
+        try {
+          const response = await fetch("/api/token");
+          const data = await response.json();
+          cognitoToken = data.access_token;
+          console.log("Cognito token retrieved");
+          updateCacheStatus("cached", "Authentication token retrieved");
+          return cognitoToken;
+        } catch (error) {
+          console.error("Failed to get Cognito token:", error);
+          updateCacheStatus("not-cached", "Authentication failed");
+          return null;
+        }
+      }
+
+      // Enhanced smart seeking with authentication
+      function smartSeek(targetTime) {
+        const currentTime = video.currentTime;
+        const seekDistance = Math.abs(targetTime - currentTime);
+
+        console.log(
+          `Smart seek: ${currentTime}s -> ${targetTime}s (distance: ${seekDistance}s)`,
+        );
+
+        let isBuffered = false;
+        for (let i = 0; i < video.buffered.length; i++) {
+          const start = video.buffered.start(i);
+          const end = video.buffered.end(i);
+          if (targetTime >= start && targetTime <= end) {
+            isBuffered = true;
+            console.log(
+              `Target time ${targetTime}s is buffered (range: ${start}s-${end}s)`,
+            );
+            break;
+          }
+        }
+
+        if (isBuffered) {
+          video.currentTime = targetTime;
+          updateCacheStatus(
+            "seek-cached",
+            `Seek to cached data (${targetTime.toFixed(1)}s)`,
+          );
+        } else {
+          updateCacheStatus(
+            "seek-download",
+            `Seeking to unbuffered data (${targetTime.toFixed(1)}s)`,
+          );
+          video.currentTime = targetTime;
+        }
+
+        seekCount++;
+        lastSeekTime = Date.now();
+      }
+
+      // Enhanced buffer visualization
+      function updateBufferVisualization() {
+        if (!video.duration) return;
+
+        bufferRanges.innerHTML = "";
+        const ranges = [];
+
+        for (let i = 0; i < video.buffered.length; i++) {
+          const start = video.buffered.start(i);
+          const end = video.buffered.end(i);
+          const startPercent = (start / video.duration) * 100;
+          const widthPercent = ((end - start) / video.duration) * 100;
+
+          ranges.push({ start, end, startPercent, widthPercent });
+
+          const rangeDiv = document.createElement("div");
+          rangeDiv.className = "buffer-range";
+          rangeDiv.style.left = startPercent + "%";
+          rangeDiv.style.width = widthPercent + "%";
+          rangeDiv.title = `Buffered: ${Math.round(start)}s - ${Math.round(end)}s`;
+          bufferRanges.appendChild(rangeDiv);
+        }
+
+        const currentPercent = (video.currentTime / video.duration) * 100;
+        currentTimeIndicator.style.left = currentPercent + "%";
+
+        if (ranges.length > 0) {
+          const totalBuffered = ranges.reduce(
+            (total, range) => total + (range.end - range.start),
+            0,
+          );
+          const bufferPercent = (
+            (totalBuffered / video.duration) *
+            100
+          ).toFixed(1);
+          bufferRangeInfo.innerHTML = `
+            <div class="status-item">
+              📊 ${ranges.length} buffer range${ranges.length !== 1 ? "s" : ""} • 
+              ${Math.round(totalBuffered)}s total • ${bufferPercent}% of video
+            </div>
+          `;
+        }
+
+        return ranges;
+      }
+
+      // Cache status tracking with enhanced UI
+      function updateCacheStatus(type, message) {
+        const timestamp = new Date().toLocaleTimeString();
+        let statusClass = "";
+        let icon = "";
+
+        switch (type) {
+          case "cached":
+            statusClass = "cached";
+            icon = "✅";
+            break;
+          case "downloading":
+            statusClass = "downloading";
+            icon = "⬇️";
+            break;
+          case "seek-cached":
+            statusClass = "cached";
+            icon = "⚡";
+            break;
+          case "seek-download":
+            statusClass = "downloading";
+            icon = "🔄";
+            break;
+          default:
+            statusClass = "not-cached";
+            icon = "❌";
+        }
+
+        const statusDiv = document.createElement("div");
+        statusDiv.className = "status-item";
+        statusDiv.innerHTML = `
+          <span class="cache-status ${statusClass}">
+            ${icon} ${type.toUpperCase()}
+          </span> 
+          ${message} 
+          <small class="text-muted">(${timestamp})</small>
+        `;
+
+        cacheStatus.insertBefore(statusDiv, cacheStatus.firstChild);
+
+        // Keep only last 5 status messages
+        while (cacheStatus.children.length > 5) {
+          cacheStatus.removeChild(cacheStatus.lastChild);
+        }
+      }
+
+      // Enhanced preload function
+      function preloadEntireVideo() {
+        if (!video.duration) {
+          console.log("Cannot preload - duration unknown");
+          updateCacheStatus(
+            "not-cached",
+            "Cannot preload - video duration unknown",
+          );
+          return;
+        }
+
+        console.log("Starting full video preload...");
+        updateCacheStatus(
+          "downloading",
+          `Starting full video preload (${Math.round(video.duration)}s)`,
+        );
+        preloadAllBtn.disabled = true;
+        preloadAllBtn.textContent = "Preloading...";
+
+        let currentPos = 0;
+        const duration = video.duration;
+        const originalTime = video.currentTime;
+        const jumpSize = Math.max(30, duration / 20);
+
+        function preloadSegment() {
+          if (currentPos >= duration) {
+            console.log("Preload complete");
+            video.currentTime = originalTime;
+            preloadAllBtn.disabled = false;
+            preloadAllBtn.textContent = "Preload Entire Video";
+            updateCacheStatus(
+              "cached",
+              "Full video preload completed successfully",
+            );
+            return;
+          }
+
+          video.currentTime = Math.min(currentPos, duration - 1);
+          currentPos += jumpSize;
+
+          const progress = Math.round((currentPos / duration) * 100);
+          preloadAllBtn.textContent = `Preloading... ${progress}%`;
+
+          setTimeout(preloadSegment, 200);
+        }
+
+        preloadSegment();
+      }
+
+      // Enhanced buffer monitoring
+      function updateBufferInfo() {
+        const ranges = updateBufferVisualization();
+
+        if (video.buffered.length > 0) {
+          const currentTime = video.currentTime;
+          let bufferedAhead = 0;
+          let bufferedBehind = 0;
+
+          for (let i = 0; i < video.buffered.length; i++) {
+            const start = video.buffered.start(i);
+            const end = video.buffered.end(i);
+
+            if (currentTime >= start && currentTime <= end) {
+              bufferedAhead = Math.max(bufferedAhead, end - currentTime);
+              bufferedBehind = Math.max(bufferedBehind, currentTime - start);
+            } else if (end > currentTime) {
+              bufferedAhead = Math.max(bufferedAhead, end - currentTime);
+            } else if (start < currentTime) {
+              bufferedBehind = Math.max(bufferedBehind, currentTime - start);
+            }
+          }
+
+          bufferDetails.textContent = `Ahead: ${Math.round(bufferedAhead)}s | Behind: ${Math.round(bufferedBehind)}s`;
+
+          if (bufferedAhead < 3 && !video.paused && !video.ended) {
+            bufferIndicator.style.display = "block";
+            bufferText.textContent = "Low buffer warning";
+          } else if (video.readyState >= 3) {
+            bufferIndicator.style.display = "none";
+          }
+
+          if (Date.now() - lastSeekTime < 1000 && bufferedAhead < 1) {
+            updateCacheStatus(
+              "seek-download",
+              `Re-download after seek #${seekCount}`,
+            );
+          }
+        }
+      }
+
+      // Video event listeners
+      video.addEventListener("loadstart", function () {
+        console.log("Load started");
+        updateCacheStatus(
+          "downloading",
+          "Video load started - authenticating...",
+        );
+        if (isInitialLoad) {
+          setTimeout(() => {
+            if (video.readyState < 2) {
+              loadingOverlay.style.display = "none";
+              autoPlayPrompt.style.display = "block";
+            }
+          }, 3000);
+        }
+      });
+
+      video.addEventListener("loadedmetadata", function () {
+        console.log(
+          `Metadata loaded - Duration: ${Math.round(video.duration)}s`,
+        );
+        updateCacheStatus(
+          "cached",
+          `Metadata loaded (${Math.round(video.duration)}s duration)`,
+        );
+
+        if (isInitialLoad) {
+          isInitialLoad = false;
+          loadingOverlay.style.display = "none";
+          autoPlayPrompt.style.display = "block";
+        }
+      });
+      video.addEventListener("progress", function () {
+        updateBufferInfo();
+        updateCacheStatus(
+          "downloading",
+          "Buffering in progress - downloading segments",
+        );
+      });
+
+      video.addEventListener("canplay", function () {
+        loadingOverlay.style.display = "none";
+        autoPlayPrompt.style.display = "none";
+        updateCacheStatus(
+          "cached",
+          "Video ready to play - sufficient buffer available",
+        );
+      });
+
+      video.addEventListener("waiting", function () {
+        bufferIndicator.style.display = "block";
+        bufferText.textContent = "Buffering...";
+        updateCacheStatus(
+          "downloading",
+          "Video waiting for data - rebuffering",
+        );
+      });
+
+      video.addEventListener("playing", function () {
+        bufferIndicator.style.display = "none";
+        updateCacheStatus("cached", "Video playing - using cached data");
+
+        if (bufferCheckInterval) clearInterval(bufferCheckInterval);
+        bufferCheckInterval = setInterval(updateBufferInfo, 500);
+      });
+
+      video.addEventListener("seeked", function () {
+        console.log(`Seeked to ${video.currentTime}s`);
+        updateCacheStatus(
+          "cached",
+          `Seek completed to ${Math.round(video.currentTime)}s`,
+        );
+        updateBufferInfo();
+      });
+
+      video.addEventListener("timeupdate", function () {
+        if (video.duration > 0) {
+          const currentTime = Math.round(video.currentTime);
+          const duration = Math.round(video.duration);
+          const percent = Math.round(
+            (video.currentTime / video.duration) * 100,
+          );
+          playbackInfo.textContent = `${currentTime}s / ${duration}s (${percent}%)`;
+        }
+        updateBufferInfo();
+      });
+
+      video.addEventListener("error", function (e) {
+        console.error("Video error:", e);
+        updateCacheStatus(
+          "not-cached",
+          "Video playback error - authentication may have failed",
+        );
+        loadingOverlay.style.display = "none";
+      });
+
+      // Event listeners for controls
+      startPlaybackBtn.addEventListener("click", function () {
+        autoPlayPrompt.style.display = "none";
+        loadingOverlay.style.display = "block";
+
+        // Get Cognito token before starting playback
+        getCognitoToken().then(() => {
+          video.load();
+          video.play().catch((e) => {
+            console.log("Play failed:", e);
+            updateCacheStatus(
+              "not-cached",
+              "Playback failed - check authentication",
+            );
+          });
+        });
+      });
+
+      playbackRateSelect.addEventListener("change", function () {
+        video.playbackRate = parseFloat(this.value);
+        updateCacheStatus("cached", `Playback speed changed to ${this.value}x`);
+      });
+
+      cacheStrategySelect.addEventListener("change", function () {
+        cacheStrategy = this.value;
+        updateCacheStatus(
+          "cached",
+          `Cache strategy changed to ${cacheStrategy}`,
+        );
+      });
+
+      preloadAllBtn.addEventListener("click", preloadEntireVideo);
+
+      clearCacheBtn.addEventListener("click", function () {
+        video.load();
+        downloadedRanges.clear();
+        updateCacheStatus("not-cached", "Cache cleared - video reloaded");
+      });
+
+      // Enhanced keyboard shortcuts with smart seeking
+      document.addEventListener("keydown", function (e) {
+        if (
+          e.target.tagName.toLowerCase() === "input" ||
+          e.target.tagName.toLowerCase() === "select" ||
+          e.target.tagName.toLowerCase() === "textarea"
+        ) {
+          return;
+        }
+
+        switch (e.code) {
+          case "Space":
+            e.preventDefault();
+            video.paused ? video.play() : video.pause();
+            break;
+          case "ArrowLeft":
+            e.preventDefault();
+            smartSeek(Math.max(0, video.currentTime - 10));
+            break;
+          case "ArrowRight":
+            e.preventDefault();
+            smartSeek(Math.min(video.duration, video.currentTime + 10));
+            break;
+          case "ArrowUp":
+            e.preventDefault();
+            video.volume = Math.min(1, video.volume + 0.1);
+            break;
+          case "ArrowDown":
+            e.preventDefault();
+            video.volume = Math.max(0, video.volume - 0.1);
+            break;
+        }
+      });
+
+      // Picture-in-Picture functionality
+      togglePipBtn.addEventListener("click", function () {
+        if (document.pictureInPictureElement) {
+          document.exitPictureInPicture();
+        } else if (document.pictureInPictureEnabled) {
+          video.requestPictureInPicture().catch((error) => {
+            console.log("PiP failed:", error);
+          });
+        }
+      });
+
+      // Fullscreen functionality
+      toggleFullscreenBtn.addEventListener("click", function () {
+        if (!document.fullscreenElement) {
+          video.requestFullscreen().catch((err) => {
+            console.log("Fullscreen failed:", err);
+          });
+        } else {
+          document.exitFullscreen();
+        }
+      });
+
+      // Download functionality
+      downloadVideoBtn.addEventListener("click", function () {
+        const link = document.createElement("a");
+        link.href = video.src;
+        link.download = "{{ file_key }}";
+        link.click();
+      });
+
+      // Network information
+      if ("connection" in navigator) {
+        const connection = navigator.connection;
+        const updateNetworkInfo = () => {
+          networkInfo.textContent = `📶 ${connection.effectiveType} | ${connection.downlink}Mbps`;
+        };
+        updateNetworkInfo();
+        connection.addEventListener("change", updateNetworkInfo);
+      }
+
+      // Initialize with Cognito authentication
+      async function initializePlayer() {
+        loadingOverlay.style.display = "block";
+
+        // Get Cognito token first
+        await getCognitoToken();
+
+        // Then load the video
+        video.load();
+
+        // Auto-hide loading overlay after timeout if metadata doesn't load
+        setTimeout(() => {
+          if (video.readyState < 2) {
+            loadingOverlay.style.display = "none";
+            autoPlayPrompt.style.display = "block";
+          }
+        }, 5000);
+      }
+
+      // Start initialization
+      initializePlayer();
+    </script>
+  </body>
+</html>

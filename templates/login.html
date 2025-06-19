@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Video Platform</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .login-container {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        width: 100%;
+        max-width: 400px;
+      }
+
+      .login-header {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+
+      .login-header h2 {
+        color: #333;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+
+      .login-header p {
+        color: #666;
+        margin: 0;
+      }
+
+      .form-floating {
+        margin-bottom: 1rem;
+      }
+
+      .btn-login {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        padding: 12px;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: transform 0.2s ease;
+      }
+
+      .btn-login:hover {
+        transform: translateY(-2px);
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+      }
+
+      .alert {
+        border-radius: 8px;
+        border: none;
+      }
+
+      .video-icon {
+        font-size: 3rem;
+        color: #667eea;
+        margin-bottom: 1rem;
+      }
+
+      .form-control {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        transition: border-color 0.3s ease;
+      }
+
+      .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+      }
+
+      .loading {
+        display: none;
+      }
+
+      .loading.show {
+        display: inline-block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-container">
+      <div class="login-header">
+        <div class="video-icon">🎥</div>
+        <h2>Welcome Back</h2>
+        <p>Sign in to access your video library</p>
+      </div>
+
+      <!-- Flash messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div
+        class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show"
+        role="alert"
+      >
+        {{ message }}
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="alert"
+        ></button>
+      </div>
+      {% endfor %} {% endif %} {% endwith %}
+
+      <form method="POST" id="loginForm">
+        <div class="form-floating">
+          <input
+            type="text"
+            class="form-control"
+            id="username"
+            name="username"
+            placeholder="Username"
+            required
+            autocomplete="username"
+          />
+          <label for="username">Username</label>
+        </div>
+
+        <div class="form-floating">
+          <input
+            type="password"
+            class="form-control"
+            id="password"
+            name="password"
+            placeholder="Password"
+            required
+            autocomplete="current-password"
+          />
+          <label for="password">Password</label>
+        </div>
+
+        <button
+          type="submit"
+          class="btn btn-primary btn-login w-100"
+          id="loginBtn"
+        >
+          <span id="loginText">Sign In</span>
+          <span
+            class="loading spinner-border spinner-border-sm ms-2"
+            role="status"
+          >
+            <span class="visually-hidden">Loading...</span>
+          </span>
+        </button>
+      </form>
+
+      <div class="text-center mt-3">
+        <small class="text-muted">
+          Secure authentication powered by AWS Cognito
+        </small>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      const loginForm = document.getElementById("loginForm");
+      const loginBtn = document.getElementById("loginBtn");
+      const loginText = document.getElementById("loginText");
+      const loadingSpinner = document.querySelector(".loading");
+
+      loginForm.addEventListener("submit", function () {
+        // Show loading state
+        loginBtn.disabled = true;
+        loginText.textContent = "Signing In...";
+        loadingSpinner.classList.add("show");
+      });
+
+      // Auto-focus username field
+      document.getElementById("username").focus();
+
+      // Handle Enter key
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !loginBtn.disabled) {
+          loginForm.submit();
+        }
+      });
+
+      // Reset form state if there's an error (page reloads)
+      window.addEventListener("load", function () {
+        loginBtn.disabled = false;
+        loginText.textContent = "Sign In";
+        loadingSpinner.classList.remove("show");
+      });
+    </script>
+  </body>
+</html>

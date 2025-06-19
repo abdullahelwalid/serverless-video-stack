@@ -45,4 +45,12 @@ __pycache.py
 .env
 tmp/
 *.pub
+*.pem
+*.der
 document-signing-20211004
+.terraform/
+*.hcl
+*.tfstate
+*.tfstate.*
+zappa_settings.json
+lambda_build/

@@ -1,0 +1,15 @@
+.placeholder-image {
+  background-color: #e9ecef;
+  font-size: 1.2rem;
+  color: #6c757d;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-title {
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
