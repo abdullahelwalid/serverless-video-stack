@@ -155,7 +155,7 @@ def refresh_access_token(refresh_token):
 def set_auth_cookies(response, access_token, id_token, refresh_token):
     """Helper function to set authentication cookies"""
     cookie_options = {
-        "max_age": 3600,  # 1 hour (match token expiry)
+        "max_age": 2592000,  # 30 days (match refresh token expiry)
         "secure": True,  # Only send over HTTPS in production
         "httponly": True,  # Prevent XSS attacks
         "samesite": "Lax",  # CSRF protection
@@ -183,6 +183,7 @@ def get_user_info_from_cookies():
     refresh_token = request.cookies.get("refresh_token")
 
     if not access_token:
+        print("Access Token not found")
         return None
 
     # Try to verify the current access token
@@ -196,9 +197,11 @@ def get_user_info_from_cookies():
             "sub": decoded_token.get("sub"),
             "access_token": access_token,
         }
+    print("Decode Token Failed")
 
     # Token is invalid/expired, try to refresh if we have a refresh token
     if refresh_token:
+        print("Refreshing Token")
         refresh_result = refresh_access_token(refresh_token)
 
         if refresh_result["success"]:
@@ -215,6 +218,8 @@ def get_user_info_from_cookies():
                     "needs_cookie_update": True,  # Flag to update cookies
                     "new_tokens": refresh_result,
                 }
+        print("Token Refresh Failed")
+    print("Refresh Token is invalid or not found")
 
     # Could not refresh or no refresh token available
     return None
