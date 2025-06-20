@@ -109,50 +109,153 @@ def verify_jwt_token(token):
         )
 
         return decoded_token
+    except jwt.ExpiredSignatureError:
+        print("Token has expired")
+        return None
     except Exception as e:
         print(f"Token verification failed: {e}")
         return None
 
 
+def refresh_access_token(refresh_token):
+    """Refresh access token using refresh token"""
+    try:
+        response = cognito_client.admin_initiate_auth(
+            UserPoolId=Config.COGNITO_USER_POOL_ID,
+            ClientId=Config.COGNITO_CLIENT_ID,
+            AuthFlow="REFRESH_TOKEN_AUTH",
+            AuthParameters={
+                "REFRESH_TOKEN": refresh_token,
+            },
+        )
+
+        auth_result = response["AuthenticationResult"]
+        new_access_token = auth_result["AccessToken"]
+        new_id_token = auth_result["IdToken"]
+
+        # Note: Refresh token might not be returned in refresh flow
+        # If it is, it will be a new refresh token
+        new_refresh_token = auth_result.get("RefreshToken", refresh_token)
+
+        return {
+            "access_token": new_access_token,
+            "id_token": new_id_token,
+            "refresh_token": new_refresh_token,
+            "success": True,
+        }
+
+    except cognito_client.exceptions.NotAuthorizedException as e:
+        print(f"Refresh token invalid or expired: {e}")
+        return {"success": False, "error": "refresh_token_invalid"}
+    except Exception as e:
+        print(f"Error refreshing token: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def set_auth_cookies(response, access_token, id_token, refresh_token):
+    """Helper function to set authentication cookies"""
+    cookie_options = {
+        "max_age": 3600,  # 1 hour (match token expiry)
+        "secure": True,  # Only send over HTTPS in production
+        "httponly": True,  # Prevent XSS attacks
+        "samesite": "Lax",  # CSRF protection
+    }
+
+    # In development, don't require HTTPS
+    if app.debug:
+        cookie_options["secure"] = False
+
+    response.set_cookie("access_token", access_token, **cookie_options)
+    response.set_cookie("id_token", id_token, **cookie_options)
+    response.set_cookie("refresh_token", refresh_token, **cookie_options)
+
+
+def clear_auth_cookies(response):
+    """Helper function to clear authentication cookies"""
+    response.delete_cookie("access_token")
+    response.delete_cookie("id_token")
+    response.delete_cookie("refresh_token")
+
+
 def get_user_info_from_cookies():
-    """Extract user info from cookies"""
+    """Extract user info from cookies with token refresh capability"""
     access_token = request.cookies.get("access_token")
+    refresh_token = request.cookies.get("refresh_token")
+
     if not access_token:
         return None
 
+    # Try to verify the current access token
     decoded_token = verify_jwt_token(access_token)
-    if not decoded_token:
-        return None
 
-    return {
-        "username": decoded_token.get("username"),
-        "email": decoded_token.get("email"),
-        "sub": decoded_token.get("sub"),
-        "access_token": access_token,
-    }
+    if decoded_token:
+        # Token is valid, return user info
+        return {
+            "username": decoded_token.get("username"),
+            "email": decoded_token.get("email"),
+            "sub": decoded_token.get("sub"),
+            "access_token": access_token,
+        }
+
+    # Token is invalid/expired, try to refresh if we have a refresh token
+    if refresh_token:
+        refresh_result = refresh_access_token(refresh_token)
+
+        if refresh_result["success"]:
+            # Successfully refreshed, verify the new token
+            new_decoded_token = verify_jwt_token(refresh_result["access_token"])
+
+            if new_decoded_token:
+                print("Token successfully refreshed")
+                return {
+                    "username": new_decoded_token.get("username"),
+                    "email": new_decoded_token.get("email"),
+                    "sub": new_decoded_token.get("sub"),
+                    "access_token": refresh_result["access_token"],
+                    "needs_cookie_update": True,  # Flag to update cookies
+                    "new_tokens": refresh_result,
+                }
+
+    # Could not refresh or no refresh token available
+    return None
 
 
 def login_required(f):
-    """Decorator to require authentication"""
+    """Decorator to require authentication with automatic token refresh"""
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Check if user has valid token in cookies
-        access_token = request.cookies.get("access_token")
-        if not access_token:
-            print("Access Token not in cookies")
-            return redirect(url_for("login"))
+        user_info = get_user_info_from_cookies()
 
-        # Verify token
-        decoded_token = verify_jwt_token(access_token)
-        if not decoded_token:
-            print("Invalid or expired token")
+        if not user_info:
+            print("No valid authentication found, redirecting to login")
             response = make_response(redirect(url_for("login")))
-            # Clear cookies
-            response.delete_cookie("access_token")
-            response.delete_cookie("id_token")
-            response.delete_cookie("refresh_token")
+            clear_auth_cookies(response)
             flash("Session expired. Please log in again.", "warning")
+            return response
+
+        # Check if we need to update cookies with refreshed tokens
+        if user_info.get("needs_cookie_update"):
+            print("Updating cookies with refreshed tokens")
+
+            # Get the current response by calling the wrapped function first
+            result = f(*args, **kwargs)
+
+            # If result is already a Response object, use it; otherwise create one
+            if isinstance(result, Response):
+                response = result
+            else:
+                response = make_response(result)
+
+            # Update cookies with new tokens
+            new_tokens = user_info["new_tokens"]
+            set_auth_cookies(
+                response,
+                new_tokens["access_token"],
+                new_tokens["id_token"],
+                new_tokens["refresh_token"],
+            )
+
             return response
 
         return f(*args, **kwargs)
@@ -205,22 +308,7 @@ def login():
 
         # Create response and set cookies
         response = make_response(redirect(url_for("index")))
-
-        # Set cookies with security options
-        cookie_options = {
-            "max_age": 3600,  # 1 hour (match token expiry)
-            "secure": True,  # Only send over HTTPS in production
-            "httponly": True,  # Prevent XSS attacks
-            "samesite": "Lax",  # CSRF protection
-        }
-
-        # In development, don't require HTTPS
-        if app.debug:
-            cookie_options["secure"] = False
-
-        response.set_cookie("access_token", access_token, **cookie_options)
-        response.set_cookie("id_token", id_token, **cookie_options)
-        response.set_cookie("refresh_token", refresh_token, **cookie_options)
+        set_auth_cookies(response, access_token, id_token, refresh_token)
 
         flash("Login successful!", "success")
         return response
@@ -240,12 +328,7 @@ def login():
 def logout():
     """Logout route"""
     response = make_response(redirect(url_for("login")))
-
-    # Clear all authentication cookies
-    response.delete_cookie("access_token")
-    response.delete_cookie("id_token")
-    response.delete_cookie("refresh_token")
-
+    clear_auth_cookies(response)
     flash("You have been logged out.", "info")
     return response
 
@@ -301,12 +384,15 @@ def index():
 
 
 @app.route("/proxy/image")
+@login_required
 def proxy_image():
-    access_token = request.cookies.get("access_token")
+    user_info = get_user_info_from_cookies()
+    access_token = user_info.get("access_token") if user_info else None
+
     # The actual image URL you want to fetch
     image_url = request.args.get("url", default=None, type=str)
-    if not image_url:
-        return None
+    if not image_url or not access_token:
+        return Response("Unauthorized", status=401)
 
     # Send request with Authorization header
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -365,7 +451,9 @@ def get_thumbnail_url(file_key):
 @login_required
 def get_token():
     """API endpoint to get current access token for CloudFront requests"""
-    access_token = request.cookies.get("access_token")
+    user_info = get_user_info_from_cookies()
+    access_token = user_info.get("access_token") if user_info else None
+
     return jsonify(
         {
             "access_token": access_token,
